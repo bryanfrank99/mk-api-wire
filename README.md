@@ -34,6 +34,8 @@ Solución profesional para la gestión de túneles VPN WireGuard sobre MikroTik 
 ## 📦 Instalación y Ejecución
 
 ### 1. Configuración del Backend
+
+#### En Windows:
 ```bash
 cd backend
 python -m venv venv
@@ -41,6 +43,20 @@ python -m venv venv
 pip install -r requirements.txt
 python seed.py  # Inicializa datos de prueba
 uvicorn app.main:app --reload --port 8000
+```
+
+#### En Linux (Ubuntu/Debian):
+```bash
+cd backend
+chmod +x *.sh
+./setup-linux.sh   # Instala todo y prepara la DB
+./run-linux.sh     # Ejecuta manualmente (se cierra al salir)
+```
+
+#### Mantener servidor siempre activo (Linux):
+Si quieres que el servidor siga corriendo al cerrar la sesión:
+```bash
+./deploy-service.sh  # Crea un servicio de sistema (Systemd)
 ```
 
 ### 2. Configuración del Cliente
