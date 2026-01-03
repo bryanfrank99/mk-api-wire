@@ -11,6 +11,7 @@ from PIL import Image
 import threading
 import asyncio
 import logging
+import sys
 
 # Configurar logging para depuración profunda
 logging.basicConfig(
@@ -20,7 +21,7 @@ logging.basicConfig(
 )
 logging.info("--- CLIENT START ---")
 
-API_BASE = "http://localhost:8000/api/v1"
+API_BASE = "http://190.15.158.121:8000/api/v1"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class WireGuardClient(ft.Column):
@@ -539,5 +540,24 @@ async def main(page: ft.Page):
     page.update()
 
 if __name__ == "__main__":
+    # Verificación de privilegios de Administrador (Necesario para WireGuard)
+    if platform.system() == "Windows":
+        try:
+            is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except:
+            is_admin = False
+            
+        if not is_admin:
+            # Intentar relanzar con privilegios de administrador
+            print("Redirecting to Admin mode...")
+            try:
+                # El parámetro "runas" solicita elevación en Windows
+                ctypes.windll.shell32.ShellExecuteW(
+                    None, "runas", sys.executable, " ".join(sys.argv), None, 1
+                )
+            except Exception as e:
+                print(f"Error al elevar privilegios: {e}")
+            sys.exit(0)
+
     # Usar ft.run para evitar DeprecationWarning
     ft.run(main, assets_dir=os.path.join(BASE_DIR, "assets"))
