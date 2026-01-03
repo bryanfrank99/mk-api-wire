@@ -1,0 +1,5 @@
+flet==0.21.2
+pystray==0.19.5
+Pillow==10.3.0
+requests==2.31.0
+cryptography==42.0.5

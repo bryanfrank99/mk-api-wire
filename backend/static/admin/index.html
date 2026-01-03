@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WireGuard Admin | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-item {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+
+        .sidebar-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            border-right: 3px solid #3b82f6;
+        }
+
+        input,
+        select {
+            background: #1e293b !important;
+            color: white !important;
+            border: 1px solid #334155 !important;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex">
+    <!-- Login Overlay -->
+    <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950">
+        <div class="glass p-8 rounded-2xl w-full max-w-md">
+            <h2 class="text-3xl font-bold mb-6 text-center text-blue-400">WG Admin Login</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Username</label>
+                    <input type="text" id="login-username"
+                        class="w-full p-3 rounded-lg outline-none focus:ring-2 ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-slate-400 mb-1">Password</label>
+                    <input type="password" id="login-password"
+                        class="w-full p-3 rounded-lg outline-none focus:ring-2 ring-blue-500">
+                </div>
+                <button onclick="adminApp.login()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition">Entrar al
+                    Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-64 glass border-r border-slate-800 flex flex-col">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i data-lucide="shield-check" class="text-blue-500"></i> WG Manager
+            </h1>
+        </div>
+        <nav class="flex-1 px-4 space-y-2">
+            <button onclick="adminApp.showTab('overview')"
+                class="sidebar-item active w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-overview">
+                <i data-lucide="layout-dashboard" size="20"></i> Dashboard
+            </button>
+            <button onclick="adminApp.showTab('users')"
+                class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-users">
+                <i data-lucide="users" size="20"></i> Usuarios
+            </button>
+            <button onclick="adminApp.showTab('nodes')"
+                class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-nodes">
+                <i data-lucide="server" size="20"></i> MikroTiks / Nodos
+            </button>
+            <button onclick="adminApp.showTab('regions')"
+                class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-regions">
+                <i data-lucide="map" size="20"></i> Regiones
+            </button>
+            <button onclick="adminApp.showTab('audit')"
+                class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-audit">
+                <i data-lucide="file-text" size="20"></i> Auditoría
+            </button>
+        </nav>
+        <div class="p-4 border-t border-slate-800">
+            <button onclick="adminApp.logout()"
+                class="flex items-center gap-3 p-3 text-red-400 hover:bg-red-500/10 w-full rounded-xl transition">
+                <i data-lucide="log-out" size="20"></i> Cerrar Sesión
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-8">
+        <!-- Overview Tab -->
+        <div id="tab-overview" class="tab-content active space-y-8">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold">Resumen del Sistema</h2>
+                <div class="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full border border-blue-500/20 text-sm">
+                    API Status: <span class="font-bold">Online</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-blue-500/20 rounded-xl text-blue-500"><i data-lucide="users"></i></div>
+                        <span class="text-sm text-green-400 flex items-center gap-1"><i data-lucide="trending-up"
+                                size="14"></i> +5%</span>
+                    </div>
+                    <p class="text-slate-400 text-sm">Usuarios Totales</p>
+                    <h3 class="text-4xl font-bold mt-1" id="stat-users">0</h3>
+                </div>
+                <div class="glass p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-emerald-500/20 rounded-xl text-emerald-500"><i data-lucide="hard-drive"></i>
+                        </div>
+                        <span class="text-sm text-emerald-400">UP</span>
+                    </div>
+                    <p class="text-slate-400 text-sm">Nodos Activos</p>
+                    <h3 class="text-4xl font-bold mt-1" id="stat-nodes">0</h3>
+                </div>
+                <div class="glass p-6 rounded-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="p-3 bg-purple-500/20 rounded-xl text-purple-500"><i data-lucide="activity"></i>
+                        </div>
+                    </div>
+                    <p class="text-slate-400 text-sm">Regiones Disponibles</p>
+                    <h3 class="text-4xl font-bold mt-1" id="stat-regions">0</h3>
+                </div>
+            </div>
+
+            <div class="glass rounded-2xl overflow-hidden">
+                <div class="p-6 border-b border-slate-800 flex justify-between items-center">
+                    <h3 class="font-bold text-lg">Actividad Reciente</h3>
+                    <button class="text-blue-400 text-sm hover:underline">Ver todo</button>
+                </div>
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-4">Acción</th>
+                            <th class="p-4">Usuario</th>
+                            <th class="p-4">Detalles</th>
+                            <th class="p-4">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overview-audit-table" class="text-sm">
+                        <!-- Content via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="tab-users" class="tab-content space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold">Gestión de Usuarios</h2>
+                <button onclick="adminApp.openModal('modal-add-user')"
+                    class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl font-bold transition flex items-center gap-2">
+                    <i data-lucide="user-plus" size="18"></i> Nuevo Usuario
+                </button>
+            </div>
+            <div class="glass rounded-2xl overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-4 text-left">Usuario</th>
+                            <th class="p-4 text-left">Rol</th>
+                            <th class="p-4 text-left">Dispositivo ID</th>
+                            <th class="p-4 text-left">IP Asignada</th>
+                            <th class="p-4 text-left">Región</th>
+                            <th class="p-4">Estado</th>
+                            <th class="p-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- Content via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Nodes Tab -->
+        <div id="tab-nodes" class="tab-content space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold">MikroTiks / Nodos</h2>
+                <button onclick="adminApp.openModal('modal-add-node')"
+                    class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl font-bold transition flex items-center gap-2">
+                    <i data-lucide="plus" size="18"></i> Añadir Servidor
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="nodes-grid">
+                <!-- Content via JS -->
+            </div>
+        </div>
+
+        <!-- Regions Tab -->
+        <div id="tab-regions" class="tab-content space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-3xl font-bold">Gestión de Regiones</h2>
+                <button onclick="adminApp.openModal('modal-add-region')"
+                    class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl font-bold transition flex items-center gap-2">
+                    <i data-lucide="plus" size="18"></i> Nueva Región
+                </button>
+            </div>
+            <div class="glass rounded-2xl overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-4">Código (ID)</th>
+                            <th class="p-4">Nombre</th>
+                            <th class="p-4 text-center">Nodos</th>
+                            <th class="p-4">Estado</th>
+                            <th class="p-4">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="regions-table-body">
+                        <!-- Content via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audit Tab -->
+        <div id="tab-audit" class="tab-content space-y-6">
+            <h2 class="text-3xl font-bold">Logs de Auditoría Completa</h2>
+            <div class="glass rounded-2xl overflow-hidden">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-900/50 text-slate-400 text-xs uppercase">
+                        <tr>
+                            <th class="p-4 whitespace-nowrap">Fecha</th>
+                            <th class="p-4">Acción</th>
+                            <th class="p-4">Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody id="full-audit-table">
+                        <!-- Content via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Add User -->
+    <div id="modal-add-user" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="glass p-8 rounded-2xl w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-6">Crear Nuevo Usuario</h3>
+            <div class="space-y-4">
+                <input type="text" id="new-user-name" placeholder="Username" class="w-full p-3 rounded-xl">
+                <input type="password" id="new-user-pass" placeholder="Password" class="w-full p-3 rounded-xl">
+                <select id="new-user-role" class="w-full p-3 rounded-xl bg-slate-800 border-none">
+                    <option value="USER">Permisos: Usuario (VPN)</option>
+                    <option value="ADMIN">Permisos: Administrador (Web)</option>
+                </select>
+                <div class="flex gap-4 mt-6">
+                    <button onclick="adminApp.closeModal('modal-add-user')"
+                        class="flex-1 bg-slate-800 py-3 rounded-xl">Cancelar</button>
+                    <button onclick="adminApp.createUser()"
+                        class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Crear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Node -->
+    <div id="modal-add-node"
+        class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="glass p-8 rounded-2xl w-full max-w-lg my-8">
+            <h3 class="text-2xl font-bold mb-6">Configurar Nodo MikroTik</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="text-xs text-slate-400">Región</label>
+                    <select id="new-node-region" class="w-full p-3 rounded-xl mt-1"></select>
+                </div>
+                <div>
+                    <input type="text" id="new-node-name" placeholder="Nombre (Miami-01)" class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="text" id="new-node-host" placeholder="Endpoint Host (wg.ex.com)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="number" id="new-node-port" value="51820" placeholder="Port (51820)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="new-node-pubkey" placeholder="Server Public Key"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="new-node-interface" placeholder="Nombre Interfaz (wg-vpn)" value="wg-vpn"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="new-node-cidr" placeholder="Pool IPv4 (10.66.10.0/24)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="new-node-allowedips" placeholder="Allowed IPs (0.0.0.0/0 para Full VPN)"
+                        value="0.0.0.0/0, ::/0" class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2 border-t border-slate-800 pt-4 mt-2">
+                    <p class="text-sm font-bold mb-2">Credenciales MikroTik</p>
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="new-node-mthost" placeholder="IP MikroTik (para la API)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="text" id="new-node-mtuser" placeholder="API User" class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="password" id="new-node-mtpass" placeholder="API Password"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" id="new-node-mtport" value="8750" placeholder="API Port (8750)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2 flex gap-4 mt-6">
+                    <button onclick="adminApp.closeModal('modal-add-node')"
+                        class="flex-1 bg-slate-800 py-3 rounded-xl">Cancelar</button>
+                    <button onclick="adminApp.createNode()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Añadir
+                        Nodo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Node -->
+    <div id="modal-edit-node"
+        class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="glass p-8 rounded-2xl w-full max-w-lg my-8">
+            <h3 class="text-2xl font-bold mb-6 text-blue-400">Editar Nodo MikroTik</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="text-xs text-slate-400">Región</label>
+                    <select id="edit-node-region" class="w-full p-3 rounded-xl mt-1"></select>
+                </div>
+                <div>
+                    <input type="text" id="edit-node-name" placeholder="Nombre (Miami-01)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="text" id="edit-node-host" placeholder="Endpoint Host (wg.ex.com)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="number" id="edit-node-port" placeholder="Port (51820)" class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="edit-node-pubkey" placeholder="Server Public Key"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="edit-node-cidr" placeholder="Pool IPv4 (10.66.10.0/24)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="edit-node-interface" placeholder="Nombre Interfaz (wg-vpn)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="edit-node-allowedips" placeholder="Allowed IPs (0.0.0.0/0 para Full VPN)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2 border-t border-slate-800 pt-4 mt-2">
+                    <p class="text-sm font-bold mb-2 text-slate-300">Credenciales MikroTik</p>
+                </div>
+                <div class="col-span-2">
+                    <input type="text" id="edit-node-mthost" placeholder="IP MikroTik (para la API)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="text" id="edit-node-mtuser" placeholder="API User" class="w-full p-3 rounded-xl">
+                </div>
+                <div>
+                    <input type="password" id="edit-node-mtpass" placeholder="API Password"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2">
+                    <input type="number" id="edit-node-mtport" placeholder="API Port (8750)"
+                        class="w-full p-3 rounded-xl">
+                </div>
+                <div class="col-span-2 flex gap-4 mt-6">
+                    <button onclick="adminApp.closeModal('modal-edit-node')"
+                        class="flex-1 bg-slate-800 py-3 rounded-xl transition hover:bg-slate-700">Cancelar</button>
+                    <button onclick="adminApp.updateNode()"
+                        class="flex-1 bg-blue-600 py-3 rounded-xl font-bold transition hover:bg-blue-500">Guardar
+                        Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Region -->
+    <div id="modal-add-region" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="glass p-8 rounded-2xl w-full max-w-md">
+            <h3 class="text-2xl font-bold mb-6">Añadir Nueva Región</h3>
+            <div class="space-y-4">
+                <input type="text" id="new-region-code" placeholder="Código (ej: US, MX, ES)"
+                    class="w-full p-3 rounded-xl">
+                <input type="text" id="new-region-name" placeholder="Nombre (ej: Estados Unidos)"
+                    class="w-full p-3 rounded-xl">
+                <div class="flex gap-4 mt-6">
+                    <button onclick="adminApp.closeModal('modal-add-region')"
+                        class="flex-1 bg-slate-800 py-3 rounded-xl">Cancelar</button>
+                    <button onclick="adminApp.createRegion()"
+                        class="flex-1 bg-blue-600 py-3 rounded-xl font-bold">Crear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+
+</html>
