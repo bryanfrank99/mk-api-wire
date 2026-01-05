@@ -30,8 +30,8 @@ class WireGuardClient(ft.Column):
         self.app_page = app_page
         self.token = None
         self.user_data = None
-        self.regions = []
-        self.selected_region = None
+        self.nodes = [] # Renamed from regions
+        self.selected_node_id = None # Renamed from selected_region
         self.device_id = hashlib.sha256(platform.node().encode()).hexdigest()[:12]
         self.wg_manager = WireGuardManager()
         self.is_connected = False
@@ -41,12 +41,12 @@ class WireGuardClient(ft.Column):
         self.password = ft.TextField(label="Password", password=True, can_reveal_password=True, border_radius=10, width=300)
         self.remember_me = ft.Checkbox(label="Remember Credentials", value=False)
         
-        self.region_dropdown = ft.Dropdown(
-            label="Select Country",
+        self.node_dropdown = ft.Dropdown(
+            label="Select Server",
             width=300,
             border_radius=10,
         )
-        self.region_dropdown.on_change = self.on_region_change
+        self.node_dropdown.on_change = self.on_node_change
         
         self.status_text = ft.Text("Ready", color=ft.Colors.BLUE_400, size=18, weight="bold")
         
@@ -315,7 +315,7 @@ class WireGuardClient(ft.Column):
                 border_radius=15
             ),
             
-            self.region_dropdown,
+            self.node_dropdown,
             
             ft.Container(
                 content=ft.Column([
@@ -352,7 +352,7 @@ class WireGuardClient(ft.Column):
                     if os.path.exists(".user_prefs"):
                         os.remove(".user_prefs")
 
-                await self.load_regions()
+                await self.load_available_nodes()
                 self.login_view.visible = False
                 self.main_view.visible = True
                 self.app_page.update()
@@ -361,21 +361,23 @@ class WireGuardClient(ft.Column):
         except Exception as ex:
             await self.show_message(f"Connection Error: {ex}")
 
-    async def load_regions(self):
+    async def load_available_nodes(self):
         headers = {"Authorization": f"Bearer {self.token}"}
         try:
+            # Modified endpoint now returns list of available nodes
+            # response format: [{"id": "uuid", "name": "NodeName (US)", "region_code": "US"}, ...]
             response = requests.get(f"{API_BASE}/regions/", headers=headers)
             if response.status_code == 200:
-                self.regions = response.json()
-                self.region_dropdown.options = [
-                    ft.dropdown.Option(r["code"], r["name"]) for r in self.regions
+                self.nodes = response.json()
+                self.node_dropdown.options = [
+                    ft.dropdown.Option(n["id"], n["name"]) for n in self.nodes
                 ]
             self.app_page.update()
         except:
             pass
 
-    def on_region_change(self, e):
-        self.selected_region = self.region_dropdown.value
+    def on_node_change(self, e):
+        self.selected_node_id = self.node_dropdown.value
 
     async def toggle_connection(self, e):
         if self.is_connected:
@@ -398,9 +400,9 @@ class WireGuardClient(ft.Column):
         return priv, pub
 
     async def connect(self):
-        region = self.region_dropdown.value
-        if not region:
-            await self.show_message("Please select a location")
+        node_id = self.node_dropdown.value
+        if not node_id:
+            await self.show_message("Please select a server")
             return
             
         self.status_text.value = "PROVISIONING..."
@@ -411,7 +413,7 @@ class WireGuardClient(ft.Column):
         priv_key, pub_key = self.get_local_keys()
         headers = {"Authorization": f"Bearer {self.token}"}
         payload = {
-            "region": region,
+            "region": node_id, # Sending Node UUID in the 'region' field (Backward Comp.)
             "public_key": pub_key,
             "device_id": self.device_id
         }
@@ -421,6 +423,10 @@ class WireGuardClient(ft.Column):
             if response.status_code == 200:
                 config_data = response.json()
                 raw_conf = config_data["config"]
+                
+                # Get display name for the connected node
+                connected_node_name = config_data.get("node", "UNKNOWN")
+                
                 full_conf = raw_conf.replace("[Interface]", f"[Interface]\nPrivateKey = {priv_key}")
                 
                 # Intentar conexión automática
@@ -428,7 +434,7 @@ class WireGuardClient(ft.Column):
                 
                 if success:
                     self.is_connected = True
-                    self.status_text.value = f"SECURED: {region.upper()}"
+                    self.status_text.value = f"SECURED: {connected_node_name.upper()}"
                     self.status_text.color = ft.Colors.GREEN_400
                     
                     # Actualizar UI del botón
@@ -559,5 +565,5 @@ if __name__ == "__main__":
                 print(f"Error al elevar privilegios: {e}")
             sys.exit(0)
 
-    # Usar ft.run para evitar DeprecationWarning
-    ft.run(main, assets_dir=os.path.join(BASE_DIR, "assets"))
+    # Usar ft.app para compatibilidad con Flet mas reciente
+    ft.app(target=main, assets_dir=os.path.join(BASE_DIR, "assets"))

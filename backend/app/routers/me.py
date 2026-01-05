@@ -75,16 +75,41 @@ async def get_wg_config(
     session.add(current_user)
     session.commit()
 
-    # Determine region
-    region_code = region or (session.get(Region, current_user.preferred_region_id).code if current_user.preferred_region_id else "US")
-    
+    # Determine Node Assignment
+    # Priority: Specific Node ID > Region > User Preference > Default Region
     wg_service = WireGuardService(session)
-    node = wg_service.get_best_node(region_code, current_user.role)
+    selected_node = None
     
-    if not node:
-        raise HTTPException(status_code=503, detail="No available nodes in this region")
+    # New parameter logic: If client sends "region" but it looks like a node_id (UUID), treat it as such
+    # OR we can update the client to send a new field "node_id". 
+    # For backward compatibility, let's assume 'region' field might carry a node_id if it doesn't match a region code format (2 chars)
+    # BUT better approach: Client sends "node_id" in 'region' field for now as we are repurposing the dropdown.
+    
+    target_identifier = region
+    
+    # Try to find if it is a specific node UUID
+    try:
+        if target_identifier and len(target_identifier) > 5: # UUIDs are long
+            node_uuid = uuid.UUID(target_identifier)
+            selected_node = session.get(Node, node_uuid)
+            # Verify permissions for this node
+            if selected_node:
+                if selected_node.admin_only and current_user.role != "ADMIN":
+                     raise HTTPException(status_code=403, detail="Restricted Node: Admin Only")
+                if selected_node.status != "UP":
+                     raise HTTPException(status_code=503, detail="Node is currently down")
+    except ValueError:
+        pass # Not a UUID, treat as region code
+    
+    if not selected_node:
+        # Fallback to Region-based Auto-Selection
+        region_code = target_identifier or (session.get(Region, current_user.preferred_region_id).code if current_user.preferred_region_id else "US")
+        selected_node = wg_service.get_best_node(region_code, current_user.role)
+
+    if not selected_node:
+        raise HTTPException(status_code=503, detail="No available nodes.")
         
-    peer = await wg_service.provision_peer(current_user, node, public_key)
+    peer = await wg_service.provision_peer(current_user, selected_node, public_key)
     
     # Generate .conf content (Client-side PrivateKey NOT included!)
     conf = f"""[Interface]
@@ -92,9 +117,9 @@ Address = {peer.assigned_ip}/32
 DNS = 1.1.1.1, 8.8.8.8
 
 [Peer]
-PublicKey = {node.server_public_key}
-Endpoint = {node.endpoint_host}:{node.endpoint_port}
-AllowedIPs = {node.allowed_ips}
+PublicKey = {selected_node.server_public_key}
+Endpoint = {selected_node.endpoint_host}:{selected_node.endpoint_port}
+AllowedIPs = {selected_node.allowed_ips}
 PersistentKeepalive = 25
 """
-    return {"config": conf, "region": region_code, "node": node.name}
+    return {"config": conf, "region": selected_node.region.code, "node": selected_node.name}
