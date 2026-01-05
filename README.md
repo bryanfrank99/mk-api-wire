@@ -1,4 +1,5 @@
 # WireGuard Premium Client & Manager
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-blue?logo=github)](https://github.com/bryanfrank99/mk-api-wire)
 
 Solución profesional para la gestión de túneles VPN WireGuard sobre MikroTik v7, con una interfaz de escritorio moderna y arquitectura de seguridad robusta.
 
@@ -69,14 +70,16 @@ python main.py
 
 ## ⚙️ Configuración del MikroTik
 
-Para la correcta gestión, el MikroTik debe estar preparado siguiendo estos pasos:
+Para que el sistema gestione los peers correctamente, debes habilitar el servicio **API** (no API-REST) y configurar el puerto esperado por defecto (8750).
 
 ```routeros
-# 1. Habilitar API REST con SSL
-/ip service set www-ssl disabled=no port=443
+# 1. Habilitar servicio API (Protocolo Propietario)
+# Por defecto el backend espera el puerto 8750.
+/ip service set api disabled=no port=8750
 
-# 2. Crear Grupo con permisos específicos
-/user group add name=vpn-mgr policy=read,write,api,rest-api,!telnet,!ssh,!ftp
+# 2. Crear Grupo con permisos mínimos
+# Es CRITICO tener los permisos: api, read, write.
+/user group add name=vpn-mgr policy=read,write,api,!telnet,!ssh,!ftp,!winbox
 
 # 3. Crear Usuario de API
 /user add name=api-user group=vpn-mgr password="TU_CONTRASEÑA_SEGURA"

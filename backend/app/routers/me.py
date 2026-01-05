@@ -9,6 +9,7 @@ from ..core.config import settings
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
 import uuid
+from datetime import datetime
 
 router = APIRouter()
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
@@ -68,12 +69,17 @@ async def get_wg_config(
         current_user.device_id = device_id
         session.add(current_user)
         session.commit()
+    
+    # Update Last Connection
+    current_user.last_connection = datetime.utcnow()
+    session.add(current_user)
+    session.commit()
 
     # Determine region
     region_code = region or (session.get(Region, current_user.preferred_region_id).code if current_user.preferred_region_id else "US")
     
     wg_service = WireGuardService(session)
-    node = wg_service.get_best_node(region_code)
+    node = wg_service.get_best_node(region_code, current_user.role)
     
     if not node:
         raise HTTPException(status_code=503, detail="No available nodes in this region")

@@ -30,6 +30,7 @@ class Node(SQLModel, table=True):
     mt_user: str
     mt_pass: str # Should be encrypted in prod
     mt_api_port: int = Field(default=8750)
+    admin_only: bool = Field(default=False)
     
     status: str = Field(default="UP") # UP, DOWN, MAINTENANCE
     priority: int = Field(default=1)
@@ -47,6 +48,7 @@ class User(SQLModel, table=True):
     preferred_region_id: Optional[UUID] = Field(default=None, foreign_key="region.id")
     is_active: bool = Field(default=True)
     assigned_ip: Optional[str] = Field(default=None) # Stable internal IP
+    last_connection: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     
     peers: List["WireGuardPeer"] = Relationship(back_populates="user")
