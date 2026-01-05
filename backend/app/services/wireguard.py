@@ -9,14 +9,21 @@ class WireGuardService:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_best_node(self, region_code: str) -> Optional[Node]:
+    def get_best_node(self, region_code: str, user_role: str = "USER") -> Optional[Node]:
         # Select active nodes in region, ordered by health and capacity
+        params = [
+            Node.status == "UP",
+            Node.current_peers < Node.max_capacity,
+            Region.code == region_code
+        ]
+        
+        if user_role != "ADMIN":
+            params.append(Node.admin_only == False)
+            
         statement = (
             select(Node)
             .join(Region)
-            .where(Region.code == region_code)
-            .where(Node.status == "UP")
-            .where(Node.current_peers < Node.max_capacity)
+            .where(*params)
             .order_by(Node.priority.desc(), Node.current_peers.asc())
         )
         return self.session.exec(statement).first()

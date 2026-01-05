@@ -27,12 +27,32 @@ def migrate():
         print("Adding 'assigned_ip' column to 'user' table...")
         cursor.execute("ALTER TABLE user ADD COLUMN assigned_ip TEXT")
         conn.commit()
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" in str(e).lower():
+            print("Column 'assigned_ip' already exists.")
+        else:
+            print(f"Error during migration: {e}")
+
+    try:
+        print("Adding 'admin_only' column to 'node' table...")
+        cursor.execute("ALTER TABLE node ADD COLUMN admin_only BOOLEAN DEFAULT 0")
+        conn.commit()
         print("Migration successful!")
     except sqlite3.OperationalError as e:
         if "duplicate column name" in str(e).lower():
             print("Column 'assigned_ip' already exists.")
         else:
             print(f"Error during migration: {e}")
+    try:
+        print("Adding 'last_connection' column to 'user' table...")
+        cursor.execute("ALTER TABLE user ADD COLUMN last_connection TIMESTAMP")
+        conn.commit()
+    except sqlite3.OperationalError as e:
+         if "duplicate column name" in str(e).lower():
+            print("Column 'last_connection' already exists.")
+         else:
+            print(f"Error during migration: {e}")
+
     finally:
         conn.close()
 

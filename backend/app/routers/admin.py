@@ -31,6 +31,7 @@ class NodeCreate(BaseModel):
     mt_pass: str
     mt_api_port: int = 8750
     interface_name: str = "wg-vpn"
+    admin_only: bool = False
 
 @router.post("/users")
 async def create_user(user_in: UserCreate, session: Session = Depends(get_session)):

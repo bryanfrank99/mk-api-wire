@@ -117,6 +117,7 @@ class AdminApp {
                 <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${u.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' : 'bg-slate-700/30 text-slate-400'}">${u.role}</span></td>
                 <td class="p-4 text-xs text-slate-400">${u.device_id || '---'}</td>
                 <td class="p-4 font-mono text-emerald-400">${u.assigned_ip || '---'}</td>
+                <td class="p-4 text-xs text-slate-300">${u.last_connection ? new Date(u.last_connection).toLocaleString() : 'Nunca'}</td>
                 <td class="p-4">${u.preferred_region_id ? 'Global/Set' : 'Opcional'}</td>
                 <td class="p-4"><span class="px-2 py-1 ${u.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500'} rounded text-xs">${u.is_active ? 'Activo' : 'Inactivo'}</span></td>
                 <td class="p-4 flex gap-2">
@@ -136,7 +137,10 @@ class AdminApp {
             html += `<div class="glass p-6 rounded-2xl border-t-4 ${n.status === 'UP' ? 'border-emerald-500' : 'border-red-500'}">
                 <div class="flex justify-between items-start mb-4">
                     <div>
-                        <h4 class="font-bold text-xl">${n.name}</h4>
+                        <h4 class="font-bold text-xl flex items-center gap-2">
+                            ${n.name}
+                            ${n.admin_only ? '<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase">TEST/ADMIN</span>' : ''}
+                        </h4>
                         <p class="text-xs text-slate-400">${region ? region.name : 'Unknown'}</p>
                     </div>
                     <span class="px-3 py-1 bg-slate-800 rounded-full text-[10px] font-bold">${n.endpoint_host}:${n.endpoint_port}</span>
@@ -217,6 +221,7 @@ class AdminApp {
         document.getElementById('edit-node-mtuser').value = node.mt_user;
         document.getElementById('edit-node-mtpass').value = node.mt_pass;
         document.getElementById('edit-node-mtport').value = node.mt_api_port;
+        document.getElementById('edit-node-adminonly').checked = node.admin_only || false;
 
         this.openModal('modal-edit-node');
     }
@@ -234,7 +239,8 @@ class AdminApp {
             mt_host: document.getElementById('edit-node-mthost').value,
             mt_user: document.getElementById('edit-node-mtuser').value,
             mt_pass: document.getElementById('edit-node-mtpass').value,
-            mt_api_port: parseInt(document.getElementById('edit-node-mtport').value) || 8750
+            mt_api_port: parseInt(document.getElementById('edit-node-mtport').value) || 8750,
+            admin_only: document.getElementById('edit-node-adminonly').checked
         };
         const res = await this.apiCall(`/admin/nodes/${this.currentEditingNodeId}`, 'PATCH', node);
         if (res) {
@@ -289,7 +295,8 @@ class AdminApp {
             mt_host: document.getElementById('new-node-mthost').value,
             mt_user: document.getElementById('new-node-mtuser').value,
             mt_pass: document.getElementById('new-node-mtpass').value,
-            mt_api_port: parseInt(document.getElementById('new-node-mtport').value) || 8750
+            mt_api_port: parseInt(document.getElementById('new-node-mtport').value) || 8750,
+            admin_only: document.getElementById('new-node-adminonly').checked
         };
 
         const res = await this.apiCall('/admin/nodes', 'POST', node);

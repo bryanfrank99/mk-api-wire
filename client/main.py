@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logging.info("--- CLIENT START ---")
 
-API_BASE = "http://190.15.158.121:8000/api/v1"
+API_BASE = "http://localhost:8000/api/v1"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class WireGuardClient(ft.Column):
