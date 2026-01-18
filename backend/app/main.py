@@ -5,7 +5,10 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session, SQLModel, create_engine
 from .core.config import settings
 from .routers import auth, regions, me, admin
+from .core.audit_logging import configure_audit_logging, set_audit_context, reset_audit_context
 import os
+import logging
+from uuid import UUID
 
 # Database setup
 engine = create_engine(
@@ -58,9 +61,44 @@ async def enforce_client_version(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def audit_request_logs(request: Request, call_next):
+    # Attach minimal context so audit log records can be attributed.
+    token = None
+    token_path = None
+    try:
+        path = request.url.path
+        user_id = None
+
+        auth = request.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            try:
+                from jose import jwt
+                from .core.security import ALGORITHM
+
+                token_str = auth.split(" ", 1)[1].strip()
+                payload = jwt.decode(token_str, settings.SECRET_KEY, algorithms=[ALGORITHM])
+                sub = payload.get("sub")
+                if sub:
+                    user_id = UUID(str(sub))
+            except Exception:
+                user_id = None
+
+        token, token_path = set_audit_context(user_id=user_id, path=path)
+
+        logging.info("HTTP %s %s", request.method, path)
+        response = await call_next(request)
+        logging.info("HTTP %s %s -> %s", request.method, path, getattr(response, "status_code", "?"))
+        return response
+    finally:
+        if token is not None and token_path is not None:
+            reset_audit_context(token, token_path)
+
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    configure_audit_logging(engine)
 
 # Serve Admin UI
 # Ensure the directory exists
