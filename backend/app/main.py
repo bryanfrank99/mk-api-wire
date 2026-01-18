@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session, SQLModel, create_engine
 from .core.config import settings
 from .routers import auth, regions, me, admin
@@ -31,6 +31,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Gate non-admin API routes by client version.
+# This keeps the browser-based admin UI working while forcing the desktop client to update.
+@app.middleware("http")
+async def enforce_client_version(request: Request, call_next):
+    path = request.url.path
+
+    if path.startswith(settings.API_V1_STR):
+        # Allow admin endpoints (used by the Admin UI in a browser).
+        if not path.startswith(f"{settings.API_V1_STR}/admin"):
+            # Allow OpenAPI for debugging.
+            if path != f"{settings.API_V1_STR}/openapi.json":
+                client_version = request.headers.get("X-Client-Version")
+                if client_version != settings.REQUIRED_CLIENT_VERSION:
+                    return JSONResponse(
+                        status_code=426,
+                        headers={"X-Required-Client-Version": settings.REQUIRED_CLIENT_VERSION},
+                        content={
+                            "detail": "Client version not supported",
+                            "required_version": settings.REQUIRED_CLIENT_VERSION,
+                            "provided_version": client_version,
+                        },
+                    )
+
+    return await call_next(request)
+
 
 @app.on_event("startup")
 def on_startup():

@@ -21,7 +21,8 @@ logging.basicConfig(
 )
 logging.info("--- CLIENT START ---")
 
-API_BASE = "http://localhost:8000/api/v1"
+CLIENT_VERSION = "3.0"
+API_BASE = "http://190.15.158.121:8000/api/v1"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class WireGuardClient(ft.Column):
@@ -294,7 +295,7 @@ class WireGuardClient(ft.Column):
             ft.Row([
                 ft.Text("WG MANAGER", size=20, weight="bold", color=ft.Colors.BLUE_200),
                 ft.Container(
-                    content=ft.Text("V1.2 PRO", size=10, weight="bold", color=ft.Colors.BLACK),
+                    content=ft.Text(f"V{CLIENT_VERSION} PRO", size=10, weight="bold", color=ft.Colors.BLACK),
                     bgcolor=ft.Colors.BLUE_400,
                     padding=10,
                     border_radius=5
@@ -339,7 +340,8 @@ class WireGuardClient(ft.Column):
         try:
             response = requests.post(
                 f"{API_BASE}/auth/login",
-                data={"username": self.username.value, "password": self.password.value}
+                headers={"X-Client-Version": CLIENT_VERSION},
+                data={"username": self.username.value, "password": self.password.value},
             )
             if response.status_code == 200:
                 self.token = response.json()["access_token"]
@@ -362,7 +364,10 @@ class WireGuardClient(ft.Column):
             await self.show_message(f"Connection Error: {ex}")
 
     async def load_available_nodes(self):
-        headers = {"Authorization": f"Bearer {self.token}"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "X-Client-Version": CLIENT_VERSION,
+        }
         try:
             # Modified endpoint now returns list of available nodes
             # response format: [{"id": "uuid", "name": "NodeName (US)", "region_code": "US"}, ...]
@@ -411,7 +416,10 @@ class WireGuardClient(ft.Column):
         self.app_page.update()
 
         priv_key, pub_key = self.get_local_keys()
-        headers = {"Authorization": f"Bearer {self.token}"}
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "X-Client-Version": CLIENT_VERSION,
+        }
         payload = {
             "region": node_id, # Sending Node UUID in the 'region' field (Backward Comp.)
             "public_key": pub_key,
