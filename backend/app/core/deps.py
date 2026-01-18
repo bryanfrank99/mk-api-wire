@@ -1,7 +1,12 @@
 from sqlmodel import Session, create_engine
 from .config import settings
 
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False}
+    if settings.DATABASE_URL.startswith("sqlite")
+    else {},
+)
 
 def get_session():
     with Session(engine) as session:
@@ -18,12 +23,12 @@ reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/log
 
 def get_current_user(
     session: Session = Depends(get_session),
-    token: str = Depends(reusable_oauth2)
+    token = Depends(reusable_oauth2),
 ) -> User:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_id = payload.get("sub")
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Could not validate credentials",

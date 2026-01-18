@@ -3,7 +3,12 @@ from app.models.database import User, Region, Node
 from app.core.security import get_password_hash
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False}
+    if settings.DATABASE_URL.startswith("sqlite")
+    else {},
+)
 
 def seed():
     # Create tables if they don't exist
