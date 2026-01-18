@@ -96,7 +96,11 @@ class AdminApp {
         document.getElementById('stat-nodes').innerText = this.nodes.length;
         document.getElementById('stat-regions').innerText = this.regions.length;
 
-        const recentAudit = this.auditLogs.slice(0, 5);
+        // Keep dashboard meaningful: show only important user events
+        const recentAudit = this.auditLogs
+            .filter(l => l.action === 'LOGIN' || l.action === 'PROVISION')
+            .slice(0, 5);
+
         let html = '';
         recentAudit.forEach(log => {
             html += `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
@@ -250,8 +254,11 @@ class AdminApp {
     }
 
     renderAudit() {
+        // In the Auditoria tab show only user login + VPN provisioning events.
+        const filtered = this.auditLogs.filter(l => l.action === 'LOGIN' || l.action === 'PROVISION');
+
         let html = '';
-        this.auditLogs.forEach(log => {
+        filtered.forEach(log => {
             html += `<tr class="border-b border-slate-800">
                 <td class="p-4 text-xs font-mono">${new Date(log.created_at).toLocaleString()}</td>
                 <td class="p-4 font-bold text-blue-400">${log.action}</td>
@@ -260,6 +267,12 @@ class AdminApp {
         });
         document.getElementById('full-audit-table').innerHTML = html;
     }
+
+    // LIVE LOGS disabled: the polling loop was slowing down initial load.
+    startLiveLogs() {}
+    stopLiveLogs() {}
+    clearLiveLogs() {}
+    appendLiveLogs(_) {}
 
     renderRegionDropdowns() {
         ['new-node-region', 'edit-node-region', 'new-user-region'].forEach(id => {

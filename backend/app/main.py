@@ -1,11 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlmodel import Session, SQLModel, create_engine
 from .core.config import settings
 from .routers import auth, regions, me, admin
+from .core.audit_logging import configure_audit_logging, set_audit_context, reset_audit_context
 import os
+import logging
+from uuid import UUID
 
 # Database setup
 engine = create_engine(
@@ -32,9 +35,70 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Gate non-admin API routes by client version.
+# This keeps the browser-based admin UI working while forcing the desktop client to update.
+@app.middleware("http")
+async def enforce_client_version(request: Request, call_next):
+    path = request.url.path
+
+    if path.startswith(settings.API_V1_STR):
+        # Allow admin endpoints (used by the Admin UI in a browser).
+        if not path.startswith(f"{settings.API_V1_STR}/admin"):
+            # Allow OpenAPI for debugging.
+            if path != f"{settings.API_V1_STR}/openapi.json":
+                client_version = request.headers.get("X-Client-Version")
+                if client_version != settings.REQUIRED_CLIENT_VERSION:
+                    return JSONResponse(
+                        status_code=426,
+                        headers={"X-Required-Client-Version": settings.REQUIRED_CLIENT_VERSION},
+                        content={
+                            "detail": "Client version not supported",
+                            "required_version": settings.REQUIRED_CLIENT_VERSION,
+                            "provided_version": client_version,
+                        },
+                    )
+
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def audit_request_logs(request: Request, call_next):
+    # Attach minimal context so audit log records can be attributed.
+    token = None
+    token_path = None
+    try:
+        path = request.url.path
+        user_id = None
+
+        auth = request.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            try:
+                from jose import jwt
+                from .core.security import ALGORITHM
+
+                token_str = auth.split(" ", 1)[1].strip()
+                payload = jwt.decode(token_str, settings.SECRET_KEY, algorithms=[ALGORITHM])
+                sub = payload.get("sub")
+                if sub:
+                    user_id = UUID(str(sub))
+            except Exception:
+                user_id = None
+
+        token, token_path = set_audit_context(user_id=user_id, path=path)
+
+        logging.info("HTTP %s %s", request.method, path)
+        response = await call_next(request)
+        logging.info("HTTP %s %s -> %s", request.method, path, getattr(response, "status_code", "?"))
+        return response
+    finally:
+        if token is not None and token_path is not None:
+            reset_audit_context(token, token_path)
+
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    configure_audit_logging(engine)
 
 # Serve Admin UI
 # Ensure the directory exists
