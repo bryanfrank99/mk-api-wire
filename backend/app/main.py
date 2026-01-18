@@ -43,20 +43,28 @@ async def enforce_client_version(request: Request, call_next):
 
     if path.startswith(settings.API_V1_STR):
         # Allow admin endpoints (used by the Admin UI in a browser).
-        if not path.startswith(f"{settings.API_V1_STR}/admin"):
-            # Allow OpenAPI for debugging.
-            if path != f"{settings.API_V1_STR}/openapi.json":
-                client_version = request.headers.get("X-Client-Version")
-                if client_version != settings.REQUIRED_CLIENT_VERSION:
-                    return JSONResponse(
-                        status_code=426,
-                        headers={"X-Required-Client-Version": settings.REQUIRED_CLIENT_VERSION},
-                        content={
-                            "detail": "Client version not supported",
-                            "required_version": settings.REQUIRED_CLIENT_VERSION,
-                            "provided_version": client_version,
-                        },
-                    )
+        if path.startswith(f"{settings.API_V1_STR}/admin"):
+            return await call_next(request)
+
+        # Allow auth endpoints (Admin UI login uses /auth/login).
+        if path.startswith(f"{settings.API_V1_STR}/auth"):
+            return await call_next(request)
+
+        # Allow OpenAPI for debugging.
+        if path == f"{settings.API_V1_STR}/openapi.json":
+            return await call_next(request)
+
+        client_version = request.headers.get("X-Client-Version")
+        if client_version != settings.REQUIRED_CLIENT_VERSION:
+            return JSONResponse(
+                status_code=426,
+                headers={"X-Required-Client-Version": settings.REQUIRED_CLIENT_VERSION},
+                content={
+                    "detail": "Client version not supported",
+                    "required_version": settings.REQUIRED_CLIENT_VERSION,
+                    "provided_version": client_version,
+                },
+            )
 
     return await call_next(request)
 
