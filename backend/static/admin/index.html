@@ -104,10 +104,7 @@
                 class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-audit">
                 <i data-lucide="file-text" size="20"></i> Auditoría
             </button>
-            <button onclick="adminApp.showTab('live-logs')"
-                class="sidebar-item w-full flex items-center gap-3 p-3 rounded-xl" id="tab-btn-live-logs">
-                <i data-lucide="terminal" size="20"></i> Logs en Vivo
-            </button>
+
         </nav>
         <div class="p-4 border-t border-slate-800">
             <button onclick="adminApp.logout()"
@@ -268,24 +265,7 @@
             </div>
         </div>
 
-        <!-- Live Logs Tab -->
-        <div id="tab-live-logs" class="tab-content space-y-6">
-            <div class="flex items-center justify-between">
-                <h2 class="text-3xl font-bold">Logs en Tiempo Real</h2>
-                <div class="flex items-center gap-3">
-                    <label class="text-xs text-slate-400">Auto-scroll</label>
-                    <input id="live-logs-autoscroll" type="checkbox" checked class="w-4 h-4 rounded accent-blue-500">
-                    <button onclick="adminApp.clearLiveLogs()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-sm">Limpiar</button>
-                </div>
-            </div>
-            <div class="glass rounded-2xl overflow-hidden border border-slate-800">
-                <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-                    <div class="text-xs text-slate-400">Fuente: Auditorda (LOG/*)</div>
-                    <div id="live-logs-status" class="text-xs text-slate-400">Conectando...</div>
-                </div>
-                <div id="live-logs-container" class="p-4 h-[520px] overflow-y-auto font-mono text-xs leading-5 bg-slate-950/40"></div>
-            </div>
-        </div>
+
     </main>
 
     <!-- Modal: Add User -->

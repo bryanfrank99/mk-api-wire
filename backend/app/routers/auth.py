@@ -3,8 +3,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 from ..core import security
 from ..core.deps import get_session
-from ..models.database import User
+from ..models.database import User, AuditLog
 from ..schemas.token import Token
+from datetime import datetime
 
 router = APIRouter()
 
@@ -24,6 +25,17 @@ async def login(
         )
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-        
+
+    # Audit: successful login
+    session.add(
+        AuditLog(
+            user_id=user.id,
+            action="LOGIN",
+            details=f"User '{user.username}' logged in",
+            created_at=datetime.utcnow(),
+        )
+    )
+    session.commit()
+
     access_token = security.create_access_token(subject=user.id)
     return {"access_token": access_token, "token_type": "bearer"}

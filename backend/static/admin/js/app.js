@@ -28,7 +28,6 @@ class AdminApp {
         ]);
         this.updateOverviewStats();
         this.renderAll();
-        this.startLiveLogs();
     }
 
     // AUTH
@@ -59,7 +58,6 @@ class AdminApp {
     }
 
     logout() {
-        this.stopLiveLogs();
         localStorage.removeItem('admin_token');
         window.location.reload();
     }
@@ -98,7 +96,11 @@ class AdminApp {
         document.getElementById('stat-nodes').innerText = this.nodes.length;
         document.getElementById('stat-regions').innerText = this.regions.length;
 
-        const recentAudit = this.auditLogs.slice(0, 5);
+        // Keep dashboard meaningful: show only important user events
+        const recentAudit = this.auditLogs
+            .filter(l => l.action === 'LOGIN' || l.action === 'PROVISION')
+            .slice(0, 5);
+
         let html = '';
         recentAudit.forEach(log => {
             html += `<tr class="border-b border-slate-800 hover:bg-slate-800/30">
@@ -252,8 +254,11 @@ class AdminApp {
     }
 
     renderAudit() {
+        // In the Auditoria tab show only user login + VPN provisioning events.
+        const filtered = this.auditLogs.filter(l => l.action === 'LOGIN' || l.action === 'PROVISION');
+
         let html = '';
-        this.auditLogs.forEach(log => {
+        filtered.forEach(log => {
             html += `<tr class="border-b border-slate-800">
                 <td class="p-4 text-xs font-mono">${new Date(log.created_at).toLocaleString()}</td>
                 <td class="p-4 font-bold text-blue-400">${log.action}</td>
@@ -263,82 +268,11 @@ class AdminApp {
         document.getElementById('full-audit-table').innerHTML = html;
     }
 
-    // LIVE LOGS (polling from audit logs)
-    startLiveLogs() {
-        if (this.liveLogsTimer) return;
-
-        this.liveLogsLastTs = null;
-        this.liveLogsBuffer = [];
-
-        const statusEl = document.getElementById('live-logs-status');
-        if (statusEl) statusEl.innerText = 'Activo';
-
-        const tick = async () => {
-            try {
-                const logs = await this.apiCall('/admin/audit-logs');
-                if (!Array.isArray(logs)) return;
-
-                // We treat any LOG/* entry as an app log.
-                const appLogs = logs.filter(l => typeof l.action === 'string' && l.action.startsWith('LOG/'));
-
-                // backend returns newest first; reverse so we append chronologically.
-                appLogs.reverse();
-
-                let newLogs = appLogs;
-                if (this.liveLogsLastTs) {
-                    newLogs = appLogs.filter(l => new Date(l.created_at).getTime() > this.liveLogsLastTs);
-                }
-
-                if (newLogs.length) {
-                    this.liveLogsLastTs = new Date(newLogs[newLogs.length - 1].created_at).getTime();
-                    this.appendLiveLogs(newLogs);
-                }
-
-                const status = document.getElementById('live-logs-status');
-                if (status) status.innerText = 'Activo';
-            } catch (e) {
-                const status = document.getElementById('live-logs-status');
-                if (status) status.innerText = 'Error';
-            }
-        };
-
-        // First fetch immediately, then poll.
-        tick();
-        this.liveLogsTimer = setInterval(tick, 1500);
-    }
-
-    stopLiveLogs() {
-        if (this.liveLogsTimer) {
-            clearInterval(this.liveLogsTimer);
-            this.liveLogsTimer = null;
-        }
-        const statusEl = document.getElementById('live-logs-status');
-        if (statusEl) statusEl.innerText = 'Detenido';
-    }
-
-    clearLiveLogs() {
-        this.liveLogsBuffer = [];
-        const container = document.getElementById('live-logs-container');
-        if (container) container.innerHTML = '';
-    }
-
-    appendLiveLogs(logs) {
-        const container = document.getElementById('live-logs-container');
-        if (!container) return;
-
-        logs.forEach(log => {
-            const ts = new Date(log.created_at).toLocaleString();
-            const line = document.createElement('div');
-            line.className = 'text-slate-200 whitespace-pre-wrap break-words';
-            line.textContent = `[${ts}] ${log.action} ${log.details}`;
-            container.appendChild(line);
-        });
-
-        const autoscroll = document.getElementById('live-logs-autoscroll');
-        if (!autoscroll || autoscroll.checked) {
-            container.scrollTop = container.scrollHeight;
-        }
-    }
+    // LIVE LOGS disabled: the polling loop was slowing down initial load.
+    startLiveLogs() {}
+    stopLiveLogs() {}
+    clearLiveLogs() {}
+    appendLiveLogs(_) {}
 
     renderRegionDropdowns() {
         ['new-node-region', 'edit-node-region', 'new-user-region'].forEach(id => {
