@@ -2,7 +2,12 @@ from sqlmodel import Session, create_engine, select
 from app.models.database import User
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False}
+    if settings.DATABASE_URL.startswith("sqlite")
+    else {},
+)
 
 def reset_user_lock(username: str):
     with Session(engine) as session:
